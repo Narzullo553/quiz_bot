@@ -1,18 +1,10 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-bosh_menu =ReplyKeyboardMarkup(
-    row_width=2,resize_keyboard=True,
-    keyboard=[
-        [
-            KeyboardButton(text="📰 Yangiliklar"),
-            KeyboardButton(text="📚 Dars Jadvali")
-        ],
-        [
-            KeyboardButton(text="✉️Murojaat"),
-            KeyboardButton(text="📞 Kontaktlar")
-        ],
-        [
-            KeyboardButton(text="❓ Tez-tez So'raladigan Savollar")
-        ]
-    ]
+main_menu = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+main_menu.add(
+    KeyboardButton("➕ Test yaratish"),
+    KeyboardButton("📋 Testlarim"),
+    KeyboardButton("🔍 Testlarni o‘rganish"),
+    KeyboardButton("📊 Statistika"),
+    KeyboardButton("📞 Qo'llab-quvvatlash"),
 )

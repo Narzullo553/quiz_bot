@@ -1,8 +1,7 @@
-from venv import create
 
 from aiogram import executor
 
-from loader import dp, db
+from loader import dp
 import middlewares, filters, handlers
 from utils.notify_admins import on_startup_notify
 from utils.set_bot_commands import set_default_commands
@@ -10,7 +9,6 @@ from data.config import ADMINS
 
 async def on_startup(dispatcher):
     try:
-        # Birlamchi komandalar (/star va /help)
         await set_default_commands(dispatcher)
         await on_startup_notify(dispatcher)
     except Exception as error:
