@@ -1,7 +1,8 @@
 
 from aiogram import executor
 
-from loader import dp
+from keyboards.inline.bosh_menu import create_quiz_menu
+from loader import dp, db
 import middlewares, filters, handlers
 from utils.notify_admins import on_startup_notify
 from utils.set_bot_commands import set_default_commands
@@ -10,6 +11,9 @@ from data.config import ADMINS
 async def on_startup(dispatcher):
     try:
         await set_default_commands(dispatcher)
+        await db.create()
+        await db.create_table_users()
+        await db.create_savollar()
         await on_startup_notify(dispatcher)
     except Exception as error:
         for admin in ADMINS:
