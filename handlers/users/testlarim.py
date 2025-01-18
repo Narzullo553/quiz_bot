@@ -1,5 +1,8 @@
+from os import urandom
 
 from aiogram import types
+
+from data.config import ADMINS
 from filters import IsPrivate
 from loader import dp, db, bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -65,15 +68,16 @@ async def ochir(call: types.CallbackQuery):
     except:
         return
 
-
+"""testni boshlash qismi"""
 async def testni_boshlash1(call, tg_id=None, nom=None):
     try:
         if tg_id is None:
             tg_id = call.from_user.id
             nom = call.data.replace('boshlash_1:', '')
         await call.message.delete()
-        user_data[f"{call.from_user.id}:{nom}"] = {"score": 0, "current_question": 1, 'xatolar': []}
-        await send_question(tg_id=call.from_user.id,nom=nom, user_id=tg_id)
+        user_data[call.from_user.id] = user_data.get(call.from_user.id, {})
+        user_data[call.from_user.id][call.from_user.id] = {'raqam': 1, 'xatolar': [], 'db_test_id':tg_id, 'nom': nom}
+        await send_question(tg_id=call.from_user.id)
     except:
          return
 
@@ -83,21 +87,21 @@ async def testni_boshlash12(call: types.CallbackQuery):
 
 
 
-async def send_question(tg_id,user_id, nom, text1 = None):
+async def send_question(tg_id, text1 = None, test_id=None):
     try:
+        user_sessions_for_chat = user_data.get(tg_id, {})
+        if test_id is None:
+            test_id = tg_id
+        user = user_sessions_for_chat.get(test_id, 0)
+        question_number = user['raqam']
+        user_id = user['db_test_id']
+        nom = user['nom']
         tg_id = int(tg_id)
         user_id = int(user_id)
         data = await db.select_tests(telegram_id=user_id, test_nomi=nom)
         data = data[0]
         data = json.loads(data)
-        try:
-            user = user_data[f"{tg_id}:{nom}"]
-        except:
-            user_data[f"{tg_id}:{nom}"] = {"score": 0, "current_question": 1, 'xatolar': []}
-            user = user_data[f"{tg_id}:{nom}"]
-        question_number = user["current_question"]
         question = data[f'{question_number}']
-        markup = InlineKeyboardMarkup(row_width=1)
         if text1 is None:
             text1 = ''
         else:
@@ -105,88 +109,59 @@ async def send_question(tg_id,user_id, nom, text1 = None):
                 question1 = data[f'{question_number-1}']
                 javob = list(question1.values())
                 text1 += f"\nto'g'ri javob: {javob[0]['#'][0]}\n"
-        for text,question in question.items():
-            try:
-                javoblar = list(set(question['#']+question['+']))
-                s = 0
-                for option in javoblar:
-                    if option == question['#'][0]:
-                        cuurent = 1
-                    else:
-                        cuurent = 0
-                        s += 1
-                    markup.add(InlineKeyboardButton(option, callback_data=f"m:{question_number}:{cuurent}:{user_id}:{len(data)}:{nom}"))
-                markup.add(InlineKeyboardButton("🛑 Stop", callback_data=f"stop_tests:{user_id}:{nom}"))
-                await bot.send_message(tg_id, f"{text1} \nsavol: {question_number}. {text}", reply_markup=markup)
-            except:
-                user_data[f"{tg_id}:{nom}"]['current_question'] += 1
-                await send_question(tg_id, user_id, nom, text1)
-    except Exception as e:
-        print('e',e)
+        if question_number < len(data):
+            for text,question in question.items():
+                try:
+                    javoblar = list(set(question['#']+question['+']))
+                    msg = await bot.send_poll(
+                        chat_id=tg_id,
+                        question=text,
+                        options=javoblar,
+                        type="quiz",
+                        correct_option_id=javoblar.index(question['#'][0]),
+                        is_anonymous=False
+                    )
 
-@dp.callback_query_handler(lambda c: c.data.startswith("stop_tests:"))
-async def quiz_test_stop(callback: types.CallbackQuery):
-    try:
-        _,user_id,nom = callback.data.split(":")
-        try:
-            user = user_data[f"{callback.from_user.id}:{nom}"]
-        except:
-            user_data[f"{callback.from_user.id}:{nom}"] = {"score": 0, "current_question": 1, 'xatolar': []}
-            user = user_data[f"{callback.from_user.id}:{nom}"]
-        soz = ""
-        data = await db.select_tests(telegram_id=int(user_id), test_nomi=nom)
-        data = data[0]
-        data = json.loads(data)
-        for i in user['xatolar']:
-            question = data[f'{i}']
-            for text, question in question.items():
-                soz += (f"savol {i}: {text}"
-                        f"\njavob: {question['#'][0]}\n\n")
-
-        del user_data[f"{callback.from_user.id}:{nom}"]
-        await callback.message.delete()
-        await bot.send_message(callback.from_user.id,
-                               f"Test tugadi! Sizning natijangiz: {user['score']}/{len(data)} 🎉"
-                               f"\nxatolar:"
-                               f"\n{soz}")
-    except Exception as e:
-        print(e)
-
-
-@dp.callback_query_handler(lambda c: c.data.startswith("m:"))
-async def quiz_callback_handler(callback: types.CallbackQuery):
-    try:
-        _, question_number, correct, user_id, l, nom= callback.data.split(":")
-        question_number = int(question_number)
-        user = user_data[f"{callback.from_user.id}:{nom}"]
-        if int(correct):
-            soz = "To'gri 🎯\n"
-            user["score"] += 1
+                    try:
+                        a = msg.poll.id
+                        del user_data[tg_id][test_id]
+                        user['javob_id'] = javoblar.index(question['#'][0])
+                        user['uzunlik'] = len(data)
+                        user_data[tg_id][a] = user
+                    except Exception as e:
+                        await bot.send_message(chat_id=tg_id, text="Viktorina tugadi!")
+                except Exception as e:
+                    user_data[tg_id][test_id]['raqam'] += 1
+                    await send_question(tg_id=tg_id, test_id=test_id)
         else:
-            user_data[f"{callback.from_user.id}:{nom}"]['xatolar'].append(question_number)
-            soz = "Noto‘g‘ri javob! ❌"
-        await callback.message.delete()
-        if question_number < int(l):
-            user["current_question"] += 1
-            await send_question(callback.from_user.id,int(user_id),nom, text1=soz)
-        else:
-            soz = ""
-            data = await db.select_tests(telegram_id=int(user_id), test_nomi=nom)
-            data = data[0]
-            data = json.loads(data)
-            for i in user['xatolar']:
-                question = data[f'{i}']
-                for text, question in question.items():
-                    soz += (f"savol {i}: {text}"
-                            f"\njavob: {question['#'][0]}\n\n")
+            await bot.send_message(chat_id=tg_id, text="Viktorina tugadi!"
+                                                         f"xatolar {user['xatolar']}")
+    except Exception as e:
+        await bot.send_message(chat_id=ADMINS[0], text=e)
 
-            del user_data[f"{callback.from_user.id}:{nom}"]
-            await bot.send_message(callback.from_user.id,
-                                   f"Test tugadi! Sizning natijangiz: {user['score']}/{l} 🎉"
-                                   f"\nxatolar:"
-                                   f"\n{soz}")
-    except:
-        return
+
+@dp.poll_answer_handler()
+async def process_poll_answer(poll_answer: types.PollAnswer):
+    chat_id = poll_answer.user.id
+    test_id = poll_answer.poll_id
+    user_sessions_for_chat = user_data.get(chat_id, {})
+    current_question = user_sessions_for_chat.get(test_id, 0)
+    current_question_index = current_question['raqam']
+    question_id = current_question['javob_id']
+    uzunlik = current_question['uzunlik']
+
+    if poll_answer.option_ids != [question_id]:
+        if current_question:
+            user_data[chat_id][test_id]['xatolar'].append(current_question_index)
+
+    current_question_index += 1
+    user_sessions_for_chat[test_id]['raqam'] = current_question_index
+    if current_question_index < uzunlik:
+        await send_question(chat_id, test_id=test_id)
+    else:
+        await bot.send_message(chat_id=chat_id, text="Viktorina tugadi!")
+
+
 
 
 
