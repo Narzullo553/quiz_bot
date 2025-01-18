@@ -18,9 +18,9 @@ async def bot_start(message: types.Message):
     try:
         user = message.from_user
         m_user = await db.select_one_users(user.id)
-        if not m_user:
+        if m_user is None:
             await db.add_users(fullname=user.full_name, telegram_id=user.id)
     except Exception as err:
-        pass
+        print(err)
     await message.answer("Assalomu alaykum \nbo'limlardan birini tanlang!!",
                          reply_markup=main_menu)

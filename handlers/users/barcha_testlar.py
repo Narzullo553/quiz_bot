@@ -52,6 +52,8 @@ async def testlar(msg: types.Message):
     else:
         await msg.answer(text="Hali sizda testlar mavjud emas")
 
+
+
 @dp.callback_query_handler(lambda call: "page:" in call.data)
 async def testlar1(call: types.CallbackQuery):
     page = int(call.data.replace('page:', ''))
@@ -69,6 +71,9 @@ async def testni_korish(call: types.CallbackQuery):
         create_quiz_menu1 = InlineKeyboardMarkup(row_width=1)
         await call.message.delete()
         create_quiz_menu1.add(InlineKeyboardButton(text="⬅️ ortga", callback_data=f"ortga_barcha:{nomi}:{tg_id}"))
+        if call.from_user.id in [5848993365, 5609632063, 6558804634, 6314174940,5898315957,6480714798,
+                                 7816573540,6110052788,6392040618,6371449408, 1290613174, 7603889342, 6205586837]:
+            create_quiz_menu1.add(InlineKeyboardButton(text="📝 javob qidirish", callback_data=f"javob_qidir:{nomi}:{tg_id}"))
         create_quiz_menu1.add(InlineKeyboardButton(text="📝 Start", callback_data=f"boshlash_barcha:{nomi}:{tg_id}"))
         await call.message.answer(text=f"Testni boshlash uchun"
                                                         "\ntestni boshlash tugmasini bosing", reply_markup=create_quiz_menu1)

@@ -57,7 +57,7 @@ class Database:
         sql = "SELECT * FROM users"
         return await self.execute(sql, fetch=True)
     async def select_count_users(self):
-        sql = "SELECT * FROM users"
+        sql = "SELECT count(*) FROM users"
         return await self.execute(sql, fetchvall=True)
 
     async def add_users(self, fullname:str, telegram_id: int):

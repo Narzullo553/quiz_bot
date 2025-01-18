@@ -69,8 +69,8 @@ async def test_yarat_b(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         await state.set_state("test_yoz")
         await call.message.answer("Iltimos, test savol va javoblaringizni quyidagicha yuboring:\n\n"
-                             "1. [Savolingiz] \nJavoblar: +[Javob 1], # [To‘g‘ri javob], +[Javob 2], ...\n"
-                             "Masalan: 1. Bu qanday savol? Javoblar: +Boshqa tizim, #Testni ishlatish, +Yangi metod!"
+                             "1. [Savolingiz] \nJavoblar: \n=====\n[Javob 1],\n=====\n# [To‘g‘ri javob],\n=====\n[Javob 2], \n++++\n...\n"
+                             "Masalan: 1. Bu qanday savol? \n=====\n Boshqa tizim,\n=====\n#Testni ishlatish,\n=====\nYangi metod!"
                                   "\ntestlarni 10 ta qilib bo'lib bo'lib yuboring",
                          reply_markup=tugma)
     except:
@@ -186,3 +186,16 @@ async def test_jonatish(msg: types.Message):
     await test_jonat(msg=msg, texti=msg.text)
 
 
+
+test = """1. savol?
+====
+variant
+====
+variant
+====
+# to'g'ri javob
+====
+variant
+++++
+2. savol?
+"""

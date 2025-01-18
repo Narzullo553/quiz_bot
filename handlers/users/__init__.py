@@ -3,6 +3,7 @@ from . import start
 from . import barcha_testlar
 from . import test_qoshish
 from . import sraristika
+from . import viktorina_test
 from . import adminga_habar
 from . import testlarim
 from . import echo

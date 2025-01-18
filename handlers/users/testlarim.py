@@ -68,12 +68,12 @@ async def ochir(call: types.CallbackQuery):
 
 async def testni_boshlash1(call, tg_id=None, nom=None):
     try:
-        user_data[call.from_user.id] = {"score": 0, "current_question": 1, 'xatolar':[]}
         if tg_id is None:
             tg_id = call.from_user.id
             nom = call.data.replace('boshlash_1:', '')
         await call.message.delete()
-        await send_question(call.from_user.id,nom=nom, user_id=tg_id)
+        user_data[f"{call.from_user.id}:{nom}"] = {"score": 0, "current_question": 1, 'xatolar': []}
+        await send_question(tg_id=call.from_user.id,nom=nom, user_id=tg_id)
     except:
          return
 
@@ -91,10 +91,10 @@ async def send_question(tg_id,user_id, nom, text1 = None):
         data = data[0]
         data = json.loads(data)
         try:
-            user = user_data[tg_id]
+            user = user_data[f"{tg_id}:{nom}"]
         except:
-            user_data[tg_id] = {"score": 0, "current_question": 1, 'xatolar': []}
-            user = user_data[tg_id]
+            user_data[f"{tg_id}:{nom}"] = {"score": 0, "current_question": 1, 'xatolar': []}
+            user = user_data[f"{tg_id}:{nom}"]
         question_number = user["current_question"]
         question = data[f'{question_number}']
         markup = InlineKeyboardMarkup(row_width=1)
@@ -106,17 +106,21 @@ async def send_question(tg_id,user_id, nom, text1 = None):
                 javob = list(question1.values())
                 text1 += f"\nto'g'ri javob: {javob[0]['#'][0]}\n"
         for text,question in question.items():
-            javoblar = list(set(question['#']+question['+']))
-            s = 0
-            for option in javoblar:
-                if option == question['#'][0]:
-                    cuurent = 1
-                else:
-                    cuurent = 0
-                    s += 1
-                markup.add(InlineKeyboardButton(option, callback_data=f"m:{question_number}:{cuurent}:{user_id}:{len(data)}:{nom}"))
-            markup.add(InlineKeyboardButton("🛑 Stop", callback_data=f"stop_tests:{user_id}:{nom}"))
-            await bot.send_message(tg_id, f"{text1} \nsavol: {question_number}. {text}", reply_markup=markup)
+            try:
+                javoblar = list(set(question['#']+question['+']))
+                s = 0
+                for option in javoblar:
+                    if option == question['#'][0]:
+                        cuurent = 1
+                    else:
+                        cuurent = 0
+                        s += 1
+                    markup.add(InlineKeyboardButton(option, callback_data=f"m:{question_number}:{cuurent}:{user_id}:{len(data)}:{nom}"))
+                markup.add(InlineKeyboardButton("🛑 Stop", callback_data=f"stop_tests:{user_id}:{nom}"))
+                await bot.send_message(tg_id, f"{text1} \nsavol: {question_number}. {text}", reply_markup=markup)
+            except:
+                user_data[f"{tg_id}:{nom}"]['current_question'] += 1
+                await send_question(tg_id, user_id, nom, text1)
     except Exception as e:
         print('e',e)
 
@@ -124,7 +128,11 @@ async def send_question(tg_id,user_id, nom, text1 = None):
 async def quiz_test_stop(callback: types.CallbackQuery):
     try:
         _,user_id,nom = callback.data.split(":")
-        user = user_data[callback.from_user.id]
+        try:
+            user = user_data[f"{callback.from_user.id}:{nom}"]
+        except:
+            user_data[f"{callback.from_user.id}:{nom}"] = {"score": 0, "current_question": 1, 'xatolar': []}
+            user = user_data[f"{callback.from_user.id}:{nom}"]
         soz = ""
         data = await db.select_tests(telegram_id=int(user_id), test_nomi=nom)
         data = data[0]
@@ -135,7 +143,7 @@ async def quiz_test_stop(callback: types.CallbackQuery):
                 soz += (f"savol {i}: {text}"
                         f"\njavob: {question['#'][0]}\n\n")
 
-        del user_data[callback.from_user.id]
+        del user_data[f"{callback.from_user.id}:{nom}"]
         await callback.message.delete()
         await bot.send_message(callback.from_user.id,
                                f"Test tugadi! Sizning natijangiz: {user['score']}/{len(data)} 🎉"
@@ -150,12 +158,12 @@ async def quiz_callback_handler(callback: types.CallbackQuery):
     try:
         _, question_number, correct, user_id, l, nom= callback.data.split(":")
         question_number = int(question_number)
-        user = user_data[callback.from_user.id]
+        user = user_data[f"{callback.from_user.id}:{nom}"]
         if int(correct):
             soz = "To'gri 🎯\n"
             user["score"] += 1
         else:
-            user_data[callback.from_user.id]['xatolar'].append(question_number)
+            user_data[f"{callback.from_user.id}:{nom}"]['xatolar'].append(question_number)
             soz = "Noto‘g‘ri javob! ❌"
         await callback.message.delete()
         if question_number < int(l):
@@ -172,7 +180,7 @@ async def quiz_callback_handler(callback: types.CallbackQuery):
                     soz += (f"savol {i}: {text}"
                             f"\njavob: {question['#'][0]}\n\n")
 
-            del user_data[callback.from_user.id]
+            del user_data[f"{callback.from_user.id}:{nom}"]
             await bot.send_message(callback.from_user.id,
                                    f"Test tugadi! Sizning natijangiz: {user['score']}/{l} 🎉"
                                    f"\nxatolar:"
