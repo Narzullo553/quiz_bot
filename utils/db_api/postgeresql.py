@@ -98,6 +98,18 @@ class Database:
             LIMIT $1 OFFSET $2
         """
         return await self.execute(sql, page_size, offset, fetch=True)
+
+    async def select_all_tests1(self, telegram_id, page: int = 1, page_size: int = 10):
+        offset = (page - 1) * page_size
+        sql = """
+            SELECT  telegram_id,test_nomi FROM tests
+            where telegram_id=$3
+            LIMIT $1 OFFSET $2
+        """
+        return await self.execute(sql, page_size, offset,telegram_id, fetch=True)
     async def test_count(self):
         sql = """SELECT count(*) FROM tests"""
         return await self.execute(sql, fetchvall=True)
+    async def test_count1(self, db_id):
+        sql = """SELECT count(*) FROM tests where telegram_id=$1"""
+        return await self.execute(sql,db_id, fetchvall=True)

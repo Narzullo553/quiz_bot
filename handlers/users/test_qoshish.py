@@ -1,10 +1,13 @@
 from aiogram import types
 import json
+from docx import Document
 import re
 import io
 from aiogram.dispatcher import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from docx.opc.oxml import nsmap
 
+from data.config import ADMINS
 from filters import IsPrivate
 from loader import dp, db, bot
 user_tests1 = {}
@@ -20,19 +23,26 @@ async def cansel(call: types.CallbackQuery, state: FSMContext):
 @dp.message_handler(content_types=types.ContentType.DOCUMENT, state='file yubor')
 async def faylni_qabul_qilish(msg: types.Message, state: FSMContext):
     document = msg.document
-    file_buffer = io.BytesIO()
-    await document.download(destination=file_buffer)
-    file_buffer.seek(0)
-    try:
-        content = file_buffer.read().decode('utf-8')
-        await state.set_state('test_yoz1')
-        data = await state.get_data()
-        msge = data['msge']
-        await msge.delete()
-        await test_jonat(msg, content)
-    except UnicodeDecodeError:
-        await msg.reply("Fayl matn formatida emas yoki uni o'qib bo'lmadi.")
-
+    name = document.file_name
+    if name.endswith((".txt", ".docx")):
+        file_buffer = io.BytesIO()
+        await document.download(destination=file_buffer)
+        file_buffer.seek(0)
+        try:
+            if name.endswith(".txt"):
+                content = file_buffer.read().decode('utf-8')
+            else:
+                doc = Document(file_buffer)
+                content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            data = await state.get_data()
+            msge = data['msge']
+            await msge.delete()
+            await state.set_state('test_yoz1')
+            await test_jonat(msg, content)
+        except UnicodeDecodeError:
+            await msg.reply("Fayl matn formatida emas yoki uni o'qib bo'lmadi.")
+    else:
+        await msg.answer("❌ Faqat .txt va .docx fayllarni qabul qilaman!")
 
 @dp.message_handler(IsPrivate(), text="➕ Test yaratish")
 async def test_yarat(msg: types.Message):
@@ -52,7 +62,10 @@ async def test_yarat_b(call: types.CallbackQuery, state: FSMContext):
     user_tests1[call.from_user.id] = {}
     tugma = InlineKeyboardMarkup(row_width=2)
     tugma.insert(InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"cancel"))
-    text = "Test fileni yuborishingiz mumkin"
+    text = ("Test fileni yuborishingiz mumkin"
+            "Iltimos, test savol va javoblaringizni quyidagicha yuboring:\n\n"
+            "1. [Savolingiz] \nJavoblar: \n=====\n[Javob 1],\n=====\n# [To‘g‘ri javob],\n=====\n[Javob 2], \n++++\n...\n"
+            "Masalan: 1. Bu qanday savol? \n=====\n Boshqa tizim,\n=====\n#Testni ishlatish,\n=====\nYangi metod!")
     await call.message.delete()
     await state.set_state('file yubor')
     msg = await call.message.answer(text, reply_markup=tugma)
@@ -154,6 +167,7 @@ async def test_jonat(msg, texti):
         else:
             questions = re.split(r'\++', input_text)
         questions = [q.strip() for q in questions if q.strip()]
+        x = 1
         for i, q in enumerate(questions, start=1):
             while '=' in q:
                 q = q.replace('=', '')
@@ -169,8 +183,10 @@ async def test_jonat(msg, texti):
                         answers['#'].append(line[1:])
                     else:
                         answers['+'].append(line)
-            unique_key = f"{question_text}"
-            user_tests[i] = {unique_key:answers}
+            if answers['#']:
+                unique_key = f"{question_text}"
+                user_tests[x] = {unique_key:answers}
+                x += 1
         tugma = InlineKeyboardMarkup(row_width=2)
         tugma.insert(InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"cancel"))
         tugma.insert(InlineKeyboardButton(text="💾 Saqlash va tugatish", callback_data=f"save_and_finish"))
@@ -178,8 +194,8 @@ async def test_jonat(msg, texti):
         await msg.answer(text="Davom etishingiz mumkin"
                               "\nagar saqlamoqchi yoki to'xtatmoqchi bo'lsangiz"
                               "\nmos tugmani bosing", reply_markup=tugma)
-    except:
-        return
+    except Exception as e:
+        await bot.send_message(chat_id=ADMINS[0], text=e)
 
 @dp.message_handler(IsPrivate(), state="test_yoz")
 async def test_jonatish(msg: types.Message):

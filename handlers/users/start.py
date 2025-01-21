@@ -10,6 +10,7 @@ from aiogram.dispatcher import FSMContext
 
 @dp.message_handler(text='/cancel', state='*')
 async def bekor_qil(msg:types.Message, state: FSMContext):
+    await msg.answer("jarayon yakunlandi")
     await msg.delete()
     await state.finish()
 
