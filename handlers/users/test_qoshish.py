@@ -5,7 +5,6 @@ import re
 import io
 from aiogram.dispatcher import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from docx.opc.oxml import nsmap
 
 from data.config import ADMINS
 from filters import IsPrivate
@@ -107,11 +106,11 @@ async def saqlash(msg: types.Message, state: FSMContext):
         user_tests = user_tests1[msg.from_user.id]
         json_data = json.dumps(user_tests, ensure_ascii=False)
         del user_tests1[msg.from_user.id]
-        await db.add_savollar(telegram_id=msg.from_user.id, test_nomi=msg.text, test=json_data)
+        db.add_savollar(telegram_id=msg.from_user.id, test_nomi=msg.text, test=json_data)
         await msg.answer("test saqlandi")
         await state.finish()
-    except:
-        pass
+    except Exception as e:
+        print(e)
 
 
 
@@ -167,7 +166,6 @@ async def test_jonat(msg, texti):
         else:
             questions = re.split(r'\++', input_text)
         questions = [q.strip() for q in questions if q.strip()]
-        x = 1
         for i, q in enumerate(questions, start=1):
             while '=' in q:
                 q = q.replace('=', '')
@@ -183,10 +181,8 @@ async def test_jonat(msg, texti):
                         answers['#'].append(line[1:])
                     else:
                         answers['+'].append(line)
-            if answers['#']:
-                unique_key = f"{question_text}"
-                user_tests[x] = {unique_key:answers}
-                x += 1
+            unique_key = f"{question_text}"
+            user_tests[i] = {unique_key:answers}
         tugma = InlineKeyboardMarkup(row_width=2)
         tugma.insert(InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"cancel"))
         tugma.insert(InlineKeyboardButton(text="💾 Saqlash va tugatish", callback_data=f"save_and_finish"))
@@ -200,18 +196,3 @@ async def test_jonat(msg, texti):
 @dp.message_handler(IsPrivate(), state="test_yoz")
 async def test_jonatish(msg: types.Message):
     await test_jonat(msg=msg, texti=msg.text)
-
-
-
-test = """1. savol?
-====
-variant
-====
-variant
-====
-# to'g'ri javob
-====
-variant
-++++
-2. savol?
-"""

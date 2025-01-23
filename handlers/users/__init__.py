@@ -4,7 +4,7 @@ from . import barcha_testlar
 from . import test_qoshish
 from . import sraristika
 from . import barchaga_habar
+from . import timersiz
 from . import viktorina_test
 from . import adminga_habar
 from . import testlarim
-from . import echo

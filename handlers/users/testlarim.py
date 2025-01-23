@@ -1,16 +1,27 @@
-
+import asyncio
 import re
 import random as rn
 
 from aiogram import types
 from aiogram.dispatcher import FSMContext
+from aiohttp.web_routedef import delete
 
 from data.config import ADMINS
-from filters import IsPrivate
+from filters import IsPrivate, IsPrivateChatFilter
+from handlers.groups.testlar_royhati_groups import process_poll_answer321, javoblar
+from handlers.users.timersiz import  process_poll_answer1, clear
 from loader import dp, db, bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
 user_data = {}
+active_polls = {}
+
+@dp.message_handler(text="ochir")
+async def Clear(msg: types.Message):
+    await clear()
+    global user_data, active_polls
+    user_data = {}
+    active_polls = {}
 
 
 @dp.message_handler(IsPrivate(),text="📋 Testlarim")
@@ -41,11 +52,10 @@ async def testlarim_xammasi1(db_id, page=1):
                 text += '\n' + f"{son}. {nomi['test_nomi']}"
                 create_quiz_menu1.insert(InlineKeyboardButton(text=f"{son}",
                                                            callback_data=f"test123:{nomi['test_nomi']}:{nomi['telegram_id']}:{db_id}"))
-
             create_quiz_menu1.row(
-                InlineKeyboardButton("◀", callback_data=f"page:{page-1}:{db_id}"),
+                InlineKeyboardButton("◀", callback_data=f"page1:{page-1}:{db_id}"),
                 InlineKeyboardButton("❌", callback_data="cancel"),
-                InlineKeyboardButton("▶", callback_data=f"page:{page+1}:{db_id}"),
+                InlineKeyboardButton("▶", callback_data=f"page1:{page+1}:{db_id}"),
             )
             return text, create_quiz_menu1, db_id
         else:
@@ -54,7 +64,21 @@ async def testlarim_xammasi1(db_id, page=1):
         return
 
 
-
+@dp.callback_query_handler(lambda call: "page1:" in call.data)
+async def testlar12(call: types.CallbackQuery):
+    try:
+        _, page, db_id = call.data.split(":")
+        if int(page) > 0:
+            text, test, db_id = await testlarim_xammasi1(db_id=call.from_user.id)
+            if test:
+                await call.message.delete()
+                await call.message.answer(text=f"📋 {text}", reply_markup=test)
+            else:
+                await call.answer("testlar topilmadi")
+        else:
+            await call.answer("testlar topilmadi")
+    except:
+        await call.answer("testlar topilmadi")
 
 
 
@@ -64,8 +88,6 @@ async def testlarim_xammasi1(db_id, page=1):
 async def ochir(call: types.CallbackQuery):
     try:
         _, nom, db_id = call.data.split(":")
-        print(nom)
-        print(db_id)
         await db.delete_tests(int(db_id), nom)
         await call.message.delete()
         await call.message.answer("test o'chirildi")
@@ -78,12 +100,35 @@ async def testni_boshlash1(call, tg_id=None, nom=None):
         if tg_id is None:
             tg_id = call.from_user.id
             nom = call.data.replace('boshlash_1:', '')
-        # await call.message.delete()
-        user_data[call.from_user.id] = user_data.get(call.from_user.id, {})
-        user_data[call.from_user.id][call.from_user.id] = {'raqam': 1, 'xatolar': [], 'db_test_id':tg_id, 'nom': nom}
+        minutlar = [10, 15, 20, 30]
+        tugma = InlineKeyboardMarkup(row_width=2)
+        for i in minutlar:
+            tugma.insert(InlineKeyboardButton(text=f"⏲️ - {i}", callback_data=f"soniya:{i}:{nom}:{tg_id}"))
+        tugma.add(InlineKeyboardButton(text=f"⏲️ - Timersiz", callback_data=f"soniyasiz:{nom}:{tg_id}"))
+        text = (f"test: {nom}"
+                f"necha soniyada almashsin"
+                f"tugmalardan birini tanlang")
+        await call.message.answer(text=text, reply_markup=tugma)
+    except:
+        await call.message.answer("xatolik yuz berdi")
+        return
+
+@dp.callback_query_handler(lambda call: "soniya:" in call.data)
+async def Soniya(call: types.CallbackQuery):
+    try:
+        _,soniya, nom, db_id = call.data.split(":")
+        await testni_boshlash123(call,soniya, nom, db_id)
+    except:
+        await call.message.answer("xatolik yuz berdi")
+        return
+
+
+async def testni_boshlash123(call,soniya, nom, tg_id):
+    try:
+        await call.message.delete()
         tugma = InlineKeyboardMarkup(row_width=1)
-        tugma.add(InlineKeyboardButton(text="🔀 - Tasodifiy Test:", callback_data=f"random_test"))
-        tugma.add(InlineKeyboardButton(text="✅ - Oddiy Test:", callback_data=f"oddiy_test"))
+        tugma.add(InlineKeyboardButton(text="🔀 - Tasodifiy Test:", callback_data=f"random_test:{soniya}:{nom}:{tg_id}"))
+        tugma.add(InlineKeyboardButton(text="✅ - Oddiy Test:", callback_data=f"oddiy_test:{soniya}:{nom}:{tg_id}"))
         await bot.send_message(chat_id=call.from_user.id,
                                text="Test qay tarzda o'tkazilsin", reply_markup=tugma)
     except Exception as e:
@@ -94,31 +139,18 @@ async def testni_boshlash1(call, tg_id=None, nom=None):
 async def oddiy_test(call: types.CallbackQuery):
     try:
         await call.message.delete()
-        user_data[call.from_user.id][call.from_user.id]['test_turi'] = "oddiy_test"
-        await send_question(tg_id=call.from_user.id)
+        _,soniya, nom, tg_id = call.data.split(":")
+        await send_quiz(chat_id=call.from_user.id, db_id=int(tg_id),soniya=soniya, db_name=nom, question_index=1)
     except:
-        user_data[call.from_user.id] = user_data.get(call.from_user.id, {})
-        test_id = ''
-        for i, j in user_data[call.from_user.id].items():
-            test_id = i
-        user_data[call.from_user.id][test_id]['test_turi'] = "oddiy_test"
-        await send_question(tg_id=call.from_user.id)
+        await call.message.answer("hatolik yuz berdi")
 
 @dp.callback_query_handler(lambda call: "random_test" in call.data)
 async def random_test(call: types.CallbackQuery, state: FSMContext):
     try:
-        try:
-            user_data[call.from_user.id][call.from_user.id]['test_turi'] = "random_test"
-        except:
-            user_data[call.from_user.id] = user_data.get(call.from_user.id, {})
-            user_data[call.from_user.id][call.from_user.id]['test_turi'] = "random_test"
-        datas = user_data[call.from_user.id][call.from_user.id]
-        nom = datas['nom']
-        db_id = datas['db_test_id']
-        data = await db.select_tests(telegram_id=int(db_id), test_nomi=nom)
+        _,soniya, nom, tg_id = call.data.split(":")
+        data = await db.select_tests(telegram_id=int(tg_id), test_nomi=nom)
         data = data[0]
         data = json.loads(data)
-        user_data[call.from_user.id][call.from_user.id]['uzunlik'] = len(data)
         text = ("test miqdori kiriting !!"
                 f"\n{len(data)} dan kam miqdor kiriting"
                 f"\nmisol: 20 ta"
@@ -126,6 +158,7 @@ async def random_test(call: types.CallbackQuery, state: FSMContext):
         await call.message.delete()
         await call.message.answer(text=text)
         await state.set_state('test_soni_yubor')
+        await state.update_data({'uzumlik': len(data), 'nom': nom, 'db_id':tg_id,'soniya': soniya})
     except Exception as e:
         await bot.send_message(chat_id=ADMINS[0], text=f"randomtest: {e}")
 
@@ -133,15 +166,17 @@ async def random_test(call: types.CallbackQuery, state: FSMContext):
 async def test_soni(msg: types.Message, state: FSMContext):
     try:
         number = re.findall(r'\d+', msg.text)
-        l = user_data[msg.from_user.id][msg.from_user.id]['uzunlik']
+        datas = await state.get_data()
+        l = datas['uzumlik']
+        nom = datas['nom']
+        db_id = datas['db_id']
+        soniya = datas['soniya']
         if int(number[0]) > l:
             await msg.answer(f"iltimos {l} dan kam miqdor kiriting")
         else:
             numbers = rn.sample(range(1, l+1), int(number[0]))
-            user_data[msg.from_user.id][msg.from_user.id]['sonlar'] = numbers
-            user_data[msg.from_user.id][msg.from_user.id]['test_uzunligi'] = len(numbers)
             await state.finish()
-            await send_question(tg_id=msg.from_user.id)
+            await send_quiz(chat_id=msg.from_user.id, db_name=nom, db_id=int(db_id), sonlar=numbers, soniya=soniya, uzunlik=int(number[0]))
     except:
         await msg.answer(f"iltimos test miqdorini to'g'ri kiriting")
 
@@ -156,155 +191,169 @@ async def testni_boshlash12(call: types.CallbackQuery):
 
 
 
+user_answers = {}
 
-async def send_question(tg_id, test_id=None):
+async def send_quiz(chat_id, db_name, db_id, soniya, question_index=0,uzunlik=0, sonlar=None, s = 1):
     try:
-        user_sessions_for_chat = user_data.get(tg_id, {})
-        if test_id is None:
-            test_id = tg_id
-        user = user_sessions_for_chat.get(test_id, 0)
-        question_number = user['raqam']
-        test_turi = user['test_turi']
-        user_id = user['db_test_id']
-        nom = user['nom']
-        tg_id = int(tg_id)
-        user_id = int(user_id)
-        data = await db.select_tests(telegram_id=user_id, test_nomi=nom)
+        """Viktorinani jo'natish va boshqarish."""
+
+        data = await db.select_tests(telegram_id=db_id, test_nomi=db_name)
         data = data[0]
         data = json.loads(data)
-        user_data[tg_id][test_id]['test_uzunligi1'] = len(data)
-        if test_turi == "random_test":
-            numbers = user['sonlar']
-            question_number = numbers[0]
-            question = data[f'{question_number}']
+        if question_index:
+            savol = question_index
         else:
-            question = data[f'{question_number}']
+            if sonlar:
+                savol = sonlar.pop(0)
+            else:
+                del user_answers[chat_id]
+                del active_polls[chat_id]
+                text, tugma = await restart(user_id=chat_id)
+                await bot.send_message(chat_id,text=text, reply_markup=tugma)
+                return
+        if savol >= len(data):
+            del user_answers[chat_id]
+            del active_polls[chat_id]
+            await bot.send_message(chat_id, "Viktorina tugadi! Rahmat ishtirok etganingiz uchun.")
+            return
+        questions = data[f'{savol}']
+        javob_idex = 0
+        # Viktorinani jo'natish
+        javoblar_x = []
+        for text, question in questions.items():
+            if text:
+                javoblar = list(set(question['#']+question['+']))
+                javoblar_x = javoblar
 
-        if question_number <= len(data):
-            for text,question in question.items():
                 try:
-                    javoblar = list(set(question['#']+question['+']))
                     msg = await bot.send_poll(
-                        chat_id=tg_id,
-                        question=text,
-                        options=javoblar,
-                        type="quiz",
-                        correct_option_id=javoblar.index(question['#'][0]),
-                        is_anonymous=False
-                    )
-                    try:
-                        a = msg.poll.id
-                        del user_data[tg_id][test_id]
-                        user['javob_id'] = javoblar.index(question['#'][0])
-                        user['uzunlik'] = len(data)
-                        user_data[tg_id][a] = user
-                    except Exception as e:
-                        await bot.send_message(chat_id=tg_id, text="Viktorina tugadi!")
+                                chat_id=chat_id,
+                                question=text,
+                                options=javoblar,
+                                type="quiz",
+                                correct_option_id=javoblar.index(question['#'][0]),
+                                is_anonymous=False
+                            )
+                    javob_idex = javoblar.index(question['#'][0])
+                    active_polls[chat_id] = msg.message_id
                 except Exception as e:
-                    user_data[tg_id][test_id]['raqam'] += 1
-                    if test_turi == "random_test":
-                        del user_data[tg_id][test_id]['sonlar'][0]
-                        user_data[tg_id][test_id]['sonlar'].append(user_data[tg_id][test_id]['raqam'])
-                    await send_question(tg_id=tg_id, test_id=test_id)
+                    print('a', e)
+            else:
+                if question_index:
+                    await send_quiz(chat_id=chat_id, db_name=db_name, db_id=db_id, soniya=soniya, question_index=savol + 1,
+                                    uzunlik=len(data), s=s + 1)
+                else:
+                    await send_quiz(chat_id=chat_id, db_name=db_name, db_id=db_id, soniya=soniya, sonlar=sonlar+[savol+1],
+                                    uzunlik=uzunlik, s= s + 1)
+                return
+
+        # 15 soniya kutish
+        await asyncio.sleep(int(soniya))
+        await bot.stop_poll(chat_id=chat_id, message_id=msg.message_id)
+        # Foydalanuvchi to'g'ri javob berganini tekshirish
+        if chat_id in user_answers and msg.poll.id in user_answers[chat_id]:
+            user_answer = user_answers[chat_id][msg.poll.id]
+            del user_answers[chat_id][msg.poll.id]
+            if user_answer != [javob_idex]:
+                user_answers[chat_id]['xatolar'].append(savol)
         else:
-            del user_data[tg_id][test_id]
-            await bot.send_message(chat_id=tg_id, text="Viktorina tugadi!"
-                                                         f"xatolar {user['xatolar']}")
+            if chat_id not in user_answers:
+                user_answers[chat_id] = {'xatolar': []}
+            user_answers[chat_id]['xatolar'].append(savol)
+        xatolar = user_answers[chat_id]['xatolar']
+        user_data[chat_id + 1] = {
+            'db_name': db_name,
+            'db_id': db_id,
+            'soniya': soniya,
+            'xatolar': xatolar,
+            'test_uzunligi': len(data),
+            'uzunlik': uzunlik,
+            'son': s
+        }
+        if question_index:
+            await send_quiz(chat_id = chat_id,db_name= db_name, db_id=db_id,soniya=soniya, question_index=savol + 1, uzunlik=len(data), s = s + 1)
+        else:
+            await send_quiz(chat_id=chat_id,db_name= db_name,db_id= db_id,soniya=soniya, sonlar=sonlar, uzunlik=uzunlik, s = s + 1)
+
+
     except Exception as e:
-        del user_data[tg_id][test_id]
-        await bot.send_message(chat_id=ADMINS[0], text=f"send_questio {e}")
+        pass
 
 
-@dp.poll_answer_handler()
+
+@dp.poll_answer_handler(IsPrivate())
 async def process_poll_answer(poll_answer: types.PollAnswer):
     try:
         chat_id = poll_answer.user.id
         test_id = poll_answer.poll_id
-        user_sessions_for_chat = user_data.get(chat_id, {})
-        current_question = user_sessions_for_chat.get(test_id, 0)
-        current_question_index = current_question['raqam']
-        question_id = current_question['javob_id']
-        uzunlik = user_data[chat_id][test_id]['test_uzunligi1']
-        test_turi = user_data[poll_answer.user.id][test_id]['test_turi']
-        if test_turi == "random_test":
-            current_question_index = user_data[poll_answer.user.id][test_id]['sonlar'].pop(0)
-        if poll_answer.option_ids != [question_id]:
-            if current_question:
-                user_data[chat_id][test_id]['xatolar'].append(current_question_index)
-        current_question_index += 1
-        user_sessions_for_chat[test_id]['raqam'] = current_question_index
-        if test_turi == "random_test":
-            if current_question['sonlar']:
-                await send_question(chat_id, test_id=test_id)
-            else:
-                test_uzunligi = int(current_question['test_uzunligi'])
-                xatolar_list = user_data[chat_id][test_id]['xatolar']
-                xatolar = int(len(xatolar_list))
-                nom = current_question['nom']
-                db_test_id = current_question['db_test_id']
-                del user_data[poll_answer.user.id][test_id]
-                text = (f"⚜️Savollar: {test_uzunligi} ta "
-                        f"\n\n❌ Xatolar: {xatolar} ta "
-                        f"\n\n✅ To'g'ri javob: {test_uzunligi - xatolar} ta"
-                        f"\n\n♻️Foizda: {100 - (xatolar * 100) / test_uzunligi}%")
-                if len(xatolar_list) > 0:
-                    tugma = InlineKeyboardMarkup(row_width=1)
-                    tugma.add(InlineKeyboardButton(text="♻️ Xato testlar ustida ishlash", callback_data=f"Xato_testlar:"))
-                    tugma.add(InlineKeyboardButton(text="♻️ Qayta urinish", callback_data=f"qayta_urinish:{nom}:{db_test_id}:{test_uzunligi}:{uzunlik}"))
-                    user_data[chat_id + 1] = [xatolar_list, nom, db_test_id]
-                else:
-                    tugma = None
-                await bot.send_message(chat_id=chat_id, text=text, reply_markup=tugma)
+        if chat_id in active_polls:
+            answer_idex = poll_answer.option_ids
+            if chat_id not in user_answers:
+                user_answers[chat_id] = {'xatolar': []}
+            user_answers[chat_id][test_id] = answer_idex
+        elif test_id in javoblar:
+            await process_poll_answer321(poll_answer)
         else:
-            if current_question_index < uzunlik:
-                await send_question(chat_id, test_id=test_id)
-            else:
-                xatolar_list = current_question['xatolar']
-                nom = current_question['nom']
-                db_test_id = current_question['db_test_id']
-                text = (f"⚜️Savollar: {uzunlik} ta "
-                        f"\n\n❌ Xatolar: {len(xatolar_list)} ta "
-                        f"\n\n✅ To'g'ri javob: {uzunlik - len(xatolar_list)} ta"
-                        f"\n\n♻️Foizda: {100 - (len(xatolar_list) * 100) / uzunlik}%")
-                if len(xatolar_list) > 0:
-                    tugma = InlineKeyboardMarkup(row_width=1)
-                    tugma.add(InlineKeyboardButton(text="♻️ Xato testlar ustida ishlash", callback_data=f"Xato_testlar:"))
-                    tugma.add(InlineKeyboardButton(text="♻️ Qayta urinish",
-                                                   callback_data=f"qayta_urinish:{nom}:{db_test_id}:{uzunlik}:{uzunlik}"))
-                    user_data[chat_id + 1] = [xatolar_list, nom, db_test_id]
-                else:
-                    tugma = None
-                del user_data[poll_answer.user.id][test_id]
-                await bot.send_message(chat_id=chat_id, text=text, reply_markup=tugma)
-    except Exception as e:
-        await bot.send_message(chat_id=ADMINS[0], text=f"process_poll: {e}")
+            await process_poll_answer1(poll_answer)
+    except:
+        print('e')
+
+
+async def restart(user_id=None, a = 0):
+    try:
+        datas = user_data[user_id + 1]
+        xatolar1 = len(datas['xatolar'])
+        test_uzunligi = datas['test_uzunligi']
+        uzunlik = datas['uzunlik']
+        son = datas['son']
+        if uzunlik:
+            test_uzunligi = uzunlik
+        text = (f"⚜️Savollar: {test_uzunligi} ta "
+                f"\n\n❌ Xatolar: {xatolar1+a} ta "
+                f"\n\n✅ To'g'ri javob: {son - xatolar1} ta"
+                f"\n\n♻️Foizda: {100 - ((xatolar1+a) * 100) / test_uzunligi}%")
+        tugma = InlineKeyboardMarkup(row_width=1)
+        tugma.add(InlineKeyboardButton(text="♻️ Xato testlar ustida ishlash", callback_data=f"Xato_testlar:"))
+        # tugma.add(InlineKeyboardButton(text="♻️ Qayta urinish", callback_data=f"qayta_urinish:{nom}:{db_test_id}:{test_uzunligi}:{uzunlik}:{soniya}"))
+        return text, tugma
+    except:
+        text, tugma = "❌ Xatolar: 0 ta ", None
+
+
+
+
+
 
 @dp.callback_query_handler(lambda call: "Xato_testlar:" in call.data)
-async def xato_qayta_ishlash(call: types.CallbackQuery):
-    try:
-        xatolar, nom, db_test_id = user_data[call.from_user.id + 1]
-        user_data[call.from_user.id] = user_data.get(call.from_user.id, {})
-        user_data[call.from_user.id][call.from_user.id] = {'raqam': 1, 'xatolar': [], 'test_turi': "random_test",
-                                                           'db_test_id': int(db_test_id), 'nom': nom,
-                                                           'sonlar': list(xatolar),
-                                                           'test_uzunligi': len(list(xatolar))}
-        await call.message.delete()
-        await send_question(call.from_user.id)
-    except Exception as e:
-        await call.message.answer(text="xatolik yur berdi")
-        await bot.send_message(chat_id=ADMINS[0], text=f"xato_qayta_ishlash {e}")
-
-
-
-@dp.callback_query_handler(lambda call: "qayta_urinish:" in call.data)
 async def qayta_ishlash(call: types.CallbackQuery):
     try:
-        _, nom, db_test_id, test_uzunligi, uzunlik = call.data.split(":")
-        user_data[call.from_user.id] = user_data.get(call.from_user.id, {})
-        numbers = rn.sample(range(1, int(uzunlik) + 1), int(test_uzunligi))
-        user_data[call.from_user.id][call.from_user.id] = {'raqam': 1, 'xatolar': [], 'db_test_id': int(db_test_id),
-                                                           'nom': nom, 'test_turi':"random_test", 'sonlar': numbers}
-        await send_question(tg_id=call.from_user.id)
+        datas = user_data[call.from_user.id + 1]
+        del user_data[call.from_user.id + 1]
+        db_id = datas['db_id']
+        db_name = datas['db_name']
+        soniya = datas['soniya']
+        xatolar = datas['xatolar']
+        await send_quiz(chat_id=call.from_user.id, db_name=db_name,
+                        db_id=db_id, soniya=soniya, sonlar=xatolar)
     except Exception as e:
         await call.message.answer(text="xatolik yur berdi")
         await bot.send_message(chat_id=ADMINS[0], text=f"qayta_ishlash {e}")
+
+
+@dp.message_handler(IsPrivate(), commands=['stop'])
+async def bot_start(message: types.Message):
+    try:
+        if message.from_user.id in active_polls:
+            m_id = active_polls[message.from_user.id]
+            await bot.stop_poll(chat_id=message.from_user.id,message_id=m_id)
+            text, tugma = await restart(user_id=message.from_user.id, a=1)
+            await message.answer(text=text, reply_markup=tugma)
+            try:
+                del active_polls[message.from_user.id]
+                del user_answers[message.from_user.id]
+            except Exception as e:
+                print('sd', e)
+        else:
+            await message.answer("sizda hali test yo")
+    except Exception as err:
+        print('e',err)

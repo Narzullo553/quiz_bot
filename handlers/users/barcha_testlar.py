@@ -63,25 +63,13 @@ async def ochirish(call: types.CallbackQuery):
 @dp.message_handler(IsPrivate(),text="🔍 Testlarni o‘rganish")
 async def testlar(msg: types.Message):
     try:
-        if msg.from_user.id in [5609632063, 6558804634, 5650754343,
-                                6314174940, 5088814012, 5898315957,
-                                6480714798, 7848635964, 5161135228,
-                                6392040618, 5862386592, 6205586837,
-                                6371449408, 6943710922, 1427324085,
-                                5746455715, 5036977201, 5084200014,
-                                1290613174, 7209502121, 6680497047,
-                                6110052788, 6105134239, 1513686261,
-                                7133622536, 5161135228, 6371449408,
-                                6418233942,int(ADMINS[0])
-                                ]:
+        if msg.from_user.id != 6512854310:
             text, test, db_id = await testlarim_xammasi()
             if test:
                 await msg.answer(text=f"📋 {text}", reply_markup=test)
 
             else:
                 await msg.answer(text="Testlar ro'yhati topilmadi")
-        else:
-            await msg.answer(text="Testlar ro'yhati topilmadi")
     except Exception as e:
         await bot.send_message(chat_id=ADMINS[0], text=f"test ro'yhati barcha: {e}")
 
@@ -132,7 +120,7 @@ async def testni_boshlash_barcha(call: types.CallbackQuery,nomi=None, tg_id=None
     except Exception as e:
         await bot.send_message(chat_id=ADMINS[0], text=f"test ro'yhati: {e}")
 
-@dp.callback_query_handler(lambda call: "boshlash_barcha:" in call.data)
-async def testni_boshlash_barcha1(call: types.CallbackQuery):
-    await call.message.delete()
-    await testni_boshlash_barcha(call=call)
+# @dp.callback_query_handler(lambda call: "boshlash_barcha:" in call.data)
+# async def testni_boshlash_barcha1(call: types.CallbackQuery):
+#     await call.message.delete()
+#     await testni_boshlash_barcha(call=call)
