@@ -11,9 +11,11 @@ from data.config import ADMINS
 async def on_startup(dispatcher):
     try:
         await set_default_commands(dispatcher)
-        await db.create()
-        await db.create_table_users()
-        await db.create_savollar()
+        try:
+            db.create_table_users()
+            db.create_savollar()
+        except Exception as e:
+            print(e)
         await on_startup_notify(dispatcher)
     except Exception as error:
         for admin in ADMINS:

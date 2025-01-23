@@ -65,7 +65,7 @@ async def random_test21(call: types.CallbackQuery, state: FSMContext):
         datas = user_data[call.from_user.id][call.from_user.id]
         nom = datas['nom']
         db_id = datas['db_test_id']
-        data = await db.select_tests(telegram_id=int(db_id), test_nomi=nom)
+        data = db.select_tests(telegram_id=int(db_id), test_nomi=nom)
         data = data[0]
         data = json.loads(data)
         user_data[call.from_user.id][call.from_user.id]['uzunlik'] = len(data)
@@ -109,7 +109,7 @@ async def send_question(tg_id, test_id=None):
         nom = user['nom']
         tg_id = int(tg_id)
         user_id = int(user_id)
-        data = await db.select_tests(telegram_id=user_id, test_nomi=nom)
+        data = db.select_tests(telegram_id=user_id, test_nomi=nom)
         data = data[0]
         data = json.loads(data)
         user_data[tg_id][test_id]['test_uzunligi1'] = len(data)

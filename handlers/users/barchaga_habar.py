@@ -7,10 +7,10 @@ from loader import dp, db, bot
 async def foydalanuvchilarga_habar(msg: types.Message):
     try:
         text = msg.text.replace("/Barchaga_habar", '')
-        datas = await db.select_all_users()
+        datas = db.select_all_users()
         for data in datas:
-            tg_id = data['telegram_id']
-            name = data['fullname']
+            tg_id = data[2]
+            name = data[1]
             try:
                 if not text:
                     text = (f"Salom {name} bot qayta yuklandi"

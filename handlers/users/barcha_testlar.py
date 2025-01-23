@@ -23,14 +23,14 @@ async def testlar_barcha_ortga1(call: types.CallbackQuery):
 async def testlarim_xammasi(page=1, db_id=5):
     try:
         if db_id == 5:
-            uzunlik = await db.test_count()
+            uzunlik = db.test_count()[0]
         else:
-            uzunlik = await db.test_count1(int(db_id))
+            uzunlik = db.test_count1(int(db_id))[0]
         if uzunlik+10 - page*10 >=0:
             if db_id == 5:
-                testlar = await db.select_all_tests(page=page)
+                testlar = db.select_all_tests(page=page)
             else:
-                testlar = await db.select_all_tests1(page=page, telegram_id=db_id)
+                testlar = db.select_all_tests1(page=page, telegram_id=db_id)
         else:
             testlar = None
         if testlar:
@@ -38,9 +38,9 @@ async def testlarim_xammasi(page=1, db_id=5):
             s = page*10-10+1
             text = f"Testlar ro'yhati {s}-{page*10}: {uzunlik}"
             for son, nomi in enumerate(testlar, start=1):
-                text += '\n' + f"{son}. {nomi['test_nomi']}"
+                text += '\n' + f"{son}. {nomi[1]}"
                 create_quiz_menu1.insert(InlineKeyboardButton(text=f"{son}",
-                                                           callback_data=f"test123:{nomi['test_nomi']}:{nomi['telegram_id']}:{db_id}"))
+                                                           callback_data=f"test123:{nomi[1]}:{nomi[0]}:{db_id}"))
 
             create_quiz_menu1.row(
                 InlineKeyboardButton("◀", callback_data=f"page:{page-1}:{db_id}"),

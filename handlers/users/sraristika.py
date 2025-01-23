@@ -6,7 +6,7 @@ from loader import dp, db
 
 @dp.message_handler(IsPrivate(), text="📊 Statistika")
 async def statistika(msg: types.Message):
-    count = await db.select_count_users()
+    count = db.select_count_users()
     text = (f"Hozirgi kunda telegram botimizda"
-            f"\n{count} 👤 foydalanuvchi mavjud")
+            f"\n{count[0]} 👤 foydalanuvchi mavjud")
     await msg.answer(text=text)

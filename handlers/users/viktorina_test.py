@@ -22,7 +22,7 @@ async def javob_qidirish(msg: types.Message, state: FSMContext):
         datas = await state.get_data()
         nom = datas['nom']
         tg_id = datas['tg_id']
-        data = await db.select_tests(telegram_id=int(tg_id), test_nomi=nom)
+        data = db.select_tests(telegram_id=int(tg_id), test_nomi=nom)
         data = data[0]
         data = json.loads(data)
         question = list(data.values())

@@ -25,7 +25,6 @@ async def adminga_habar_yubor(msg: types.Message, state: FSMContext):
     try:
         admin = int(ADMINS[0])
         data = await state.get_data()
-        print(data)
         msge = data['msg']
         await msg.answer("xabaringiz adminga yuborildi")
         await msge.delete()

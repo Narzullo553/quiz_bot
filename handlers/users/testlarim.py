@@ -39,9 +39,9 @@ async def testlar(msg: types.Message):
 
 async def testlarim_xammasi1(db_id, page=1):
     try:
-        uzunlik = await db.test_count1(int(db_id))
+        uzunlik = db.test_count1(int(db_id))[0]
         if uzunlik+10 - page*10 >=0:
-            testlar = await db.select_all_tests1(page=page, telegram_id=db_id)
+            testlar = db.select_all_tests1(page=page, telegram_id=int(db_id))
         else:
             testlar = None
         if testlar:
@@ -49,9 +49,9 @@ async def testlarim_xammasi1(db_id, page=1):
             s = page*10-10+1
             text = f"Testlar ro'yhati {s}-{page*10}: {uzunlik}"
             for son, nomi in enumerate(testlar, start=1):
-                text += '\n' + f"{son}. {nomi['test_nomi']}"
+                text += '\n' + f"{son}. {nomi[1]}"
                 create_quiz_menu1.insert(InlineKeyboardButton(text=f"{son}",
-                                                           callback_data=f"test123:{nomi['test_nomi']}:{nomi['telegram_id']}:{db_id}"))
+                                                           callback_data=f"test123:{nomi[1]}:{nomi[0]}:{db_id}"))
             create_quiz_menu1.row(
                 InlineKeyboardButton("◀", callback_data=f"page1:{page-1}:{db_id}"),
                 InlineKeyboardButton("❌", callback_data="cancel"),
@@ -60,7 +60,7 @@ async def testlarim_xammasi1(db_id, page=1):
             return text, create_quiz_menu1, db_id
         else:
             return 2, 2, 2
-    except:
+    except Exception as e:
         return
 
 
@@ -88,7 +88,7 @@ async def testlar12(call: types.CallbackQuery):
 async def ochir(call: types.CallbackQuery):
     try:
         _, nom, db_id = call.data.split(":")
-        await db.delete_tests(int(db_id), nom)
+        db.delete_tests(int(db_id), nom)
         await call.message.delete()
         await call.message.answer("test o'chirildi")
     except Exception as e:
@@ -148,7 +148,7 @@ async def oddiy_test(call: types.CallbackQuery):
 async def random_test(call: types.CallbackQuery, state: FSMContext):
     try:
         _,soniya, nom, tg_id = call.data.split(":")
-        data = await db.select_tests(telegram_id=int(tg_id), test_nomi=nom)
+        data = db.select_tests(telegram_id=int(tg_id), test_nomi=nom)
         data = data[0]
         data = json.loads(data)
         text = ("test miqdori kiriting !!"
@@ -197,7 +197,7 @@ async def send_quiz(chat_id, db_name, db_id, soniya, question_index=0,uzunlik=0,
     try:
         """Viktorinani jo'natish va boshqarish."""
 
-        data = await db.select_tests(telegram_id=db_id, test_nomi=db_name)
+        data = db.select_tests(telegram_id=db_id, test_nomi=db_name)
         data = data[0]
         data = json.loads(data)
         if question_index:
@@ -218,8 +218,6 @@ async def send_quiz(chat_id, db_name, db_id, soniya, question_index=0,uzunlik=0,
             return
         questions = data[f'{savol}']
         javob_idex = 0
-        # Viktorinani jo'natish
-        javoblar_x = []
         for text, question in questions.items():
             if text:
                 javoblar = list(set(question['#']+question['+']))
@@ -263,11 +261,11 @@ async def send_quiz(chat_id, db_name, db_id, soniya, question_index=0,uzunlik=0,
         xatolar = user_answers[chat_id]['xatolar']
         user_data[chat_id + 1] = {
             'db_name': db_name,
-            'db_id': db_id,
-            'soniya': soniya,
+            'db_id': int(db_id),
+            'soniya': int(soniya),
             'xatolar': xatolar,
             'test_uzunligi': len(data),
-            'uzunlik': uzunlik,
+            'uzunlik': int(uzunlik),
             'son': s
         }
         if question_index:
@@ -303,9 +301,14 @@ async def restart(user_id=None, a = 0):
     try:
         datas = user_data[user_id + 1]
         xatolar1 = len(datas['xatolar'])
+        xatolar = datas['xatolar']
         test_uzunligi = datas['test_uzunligi']
         uzunlik = datas['uzunlik']
         son = datas['son']
+        nom = datas['db_name']
+        db_id = datas['db_id']
+        soniya = datas['soniya']
+        del user_data[user_id + 1]
         if uzunlik:
             test_uzunligi = uzunlik
         text = (f"⚜️Savollar: {test_uzunligi} ta "
@@ -313,28 +316,23 @@ async def restart(user_id=None, a = 0):
                 f"\n\n✅ To'g'ri javob: {son - xatolar1} ta"
                 f"\n\n♻️Foizda: {100 - ((xatolar1+a) * 100) / test_uzunligi}%")
         tugma = InlineKeyboardMarkup(row_width=1)
-        tugma.add(InlineKeyboardButton(text="♻️ Xato testlar ustida ishlash", callback_data=f"Xato_testlar:"))
-        # tugma.add(InlineKeyboardButton(text="♻️ Qayta urinish", callback_data=f"qayta_urinish:{nom}:{db_test_id}:{test_uzunligi}:{uzunlik}:{soniya}"))
+        # tugma.add(InlineKeyboardButton(text="♻️ Xato testlar ustida ishlash", callback_data=f"Xato_testlar_s:{nom}:{db_id}:{xatolar}:{soniya}"))
+        tugma.add(InlineKeyboardButton(text="♻️ Qayta urinish", callback_data=f"qayta_urinish_s:{nom}:{db_id}:{test_uzunligi}:{uzunlik}:{soniya}"))
         return text, tugma
     except:
-        text, tugma = "❌ Xatolar: 0 ta ", None
+        return "❌ Xatolar: 0 ta ", None
 
 
 
 
 
 
-@dp.callback_query_handler(lambda call: "Xato_testlar:" in call.data)
+@dp.callback_query_handler(lambda call: "Xato_testlar_s:" in call.data)
 async def qayta_ishlash(call: types.CallbackQuery):
     try:
-        datas = user_data[call.from_user.id + 1]
-        del user_data[call.from_user.id + 1]
-        db_id = datas['db_id']
-        db_name = datas['db_name']
-        soniya = datas['soniya']
-        xatolar = datas['xatolar']
-        await send_quiz(chat_id=call.from_user.id, db_name=db_name,
-                        db_id=db_id, soniya=soniya, sonlar=xatolar)
+        _,nom,db_id,xatolar,soniya = call.data.split(":")
+        await send_quiz(chat_id=call.from_user.id, db_name=nom,
+                        db_id=int(db_id), soniya=int(soniya), sonlar=xatolar)
     except Exception as e:
         await call.message.answer(text="xatolik yur berdi")
         await bot.send_message(chat_id=ADMINS[0], text=f"qayta_ishlash {e}")
@@ -357,3 +355,14 @@ async def bot_start(message: types.Message):
             await message.answer("sizda hali test yo")
     except Exception as err:
         print('e',err)
+
+
+@dp.callback_query_handler(lambda call: "qayta_urinish_s:" in call.data)
+async def qayta_ishlash_s(call: types.CallbackQuery):
+    try:
+        _, nom, db_id, test_uzunligi, uzunlik, soniya = call.data.split(":")
+        numbers = rn.sample(range(1, int(test_uzunligi) + 1), int(uzunlik))
+        await send_quiz(chat_id=call.from_user.id, db_name=nom, db_id=int(db_id), sonlar=numbers, soniya=soniya, uzunlik=uzunlik)
+    except Exception as e:
+        await call.message.answer(text="xatolik yur berdi")
+        await bot.send_message(chat_id=ADMINS[0], text=f"qayta_ishlash {e}")
