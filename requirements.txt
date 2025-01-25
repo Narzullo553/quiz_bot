@@ -1,0 +1,5 @@
+asyncpg
+aiogram==2.25.1
+environs
+python-docx
+python-dotenv==1.0.1
